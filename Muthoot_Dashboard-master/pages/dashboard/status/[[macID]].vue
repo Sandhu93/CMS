@@ -60,6 +60,7 @@
 </template>
 <script setup>
 import { useNotificationsStore } from "@/store/notifications";
+import { isVisibleOnStatusList } from "@/utils/statusVisibility";
 const config = useRuntimeConfig();
 definePageMeta({
   layout: "dashboard",
@@ -177,7 +178,15 @@ io.on("data", (newData) => {
   //   text: `Data updated for with MacID ${newData.mac_id}`,
   // });
   // newData.Net_Con = "ethernet";
-  tempData.value[tempData.value.findIndex((d) => d.mac_id === newData.mac_id)] = newData;
+  const index = tempData.value.findIndex((d) => d.mac_id === newData.mac_id);
+  const visible = isVisibleOnStatusList(newData, unregisteredToggle.value);
+  if (!visible) {
+    if (index !== -1) tempData.value.splice(index, 1);
+  } else if (index === -1) {
+    tempData.value.push(newData);
+  } else {
+    tempData.value[index] = newData;
+  }
   filter(gFilters);
 });
 function is_numeric(val) {

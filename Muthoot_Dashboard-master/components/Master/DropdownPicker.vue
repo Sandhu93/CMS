@@ -84,11 +84,7 @@ const emit = defineEmits(["update"]);
 const { list, selected, title } = defineProps(["list", "selected", "title"]);
 
 let selectedChannel = ref(
-  selected
-    ? list.find(
-        (x) => x.value === (typeof selected === "string" ? selected : selected)
-      )
-    : null
+  list.find((x) => x.value === selected) || null
 );
 
 const dropOpen = ref(false);

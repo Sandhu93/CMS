@@ -88,13 +88,14 @@ async function loadData() {
     }
   });
   if(branchesData.value && branchesData.value.statusCode === 200) {
-    branches.value = branchesData.value.data.branches.map((item) => {
-      return {
+    branches.value = [
+      { key: null, name: "Unassigned (no branch)", value: null },
+      ...branchesData.value.data.branches.map((item) => ({
         key: item.Branch_Name,
         name: item.Branch_Name + " (" + item.Code + ")",
         value: item.Code
-      }
-    });
+      })),
+    ];
     loading.value = false;
   } else {
     add({ 

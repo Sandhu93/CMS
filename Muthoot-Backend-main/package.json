@@ -5,7 +5,7 @@
   "description": "Backend for Muthoot Finance Dashboard",
   "main": "index.js",
   "scripts": {
-    "test": "node --test tests/compatibility.test.js tests/mqttDiagnostics.test.js",
+    "test": "node --test tests/compatibility.test.js tests/mqttDiagnostics.test.js tests/statusVisibility.test.js",
     "dev": "node --watch index.js"
   },
   "author": "",

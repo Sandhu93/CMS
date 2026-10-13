@@ -3,6 +3,7 @@ import { permissionMiddleware } from "../middlewares/permissions.js";
 import { roles, database } from "../services/mongodb.service.js";
 import { PermissionField } from "../utils/constants.js";
 import { isMacDeviceId, normalizeDeviceId } from "../utils/deviceId.js";
+import { io } from "../models/backend.js";
 
 const router = express.Router();
 
@@ -110,17 +111,43 @@ router.post(
         { upsert: true }
       );
 
-      // Update the entries in the buffers collection
+      const branchCode = device.Branch_Code || null;
+      const branchRecord = branchCode
+        ? await database.branches.findOne(
+            { Code: branchCode },
+            {
+              projection: {
+                _id: 0,
+                Branch_Name: 1,
+                Code: 1,
+                Region: 1,
+                Hub: 1,
+                Vertical: 1,
+              },
+            }
+          )
+        : null;
+
+      // Update by the canonical panel identity. Older buffer documents may not
+      // have the nested device.Device_ID field populated yet.
       await database.buffer.updateMany(
-        { "device.Device_ID": device.Device_ID },
+        { mac_id: device.Device_ID },
         {
           $set: {
-            "device.Branch_Code": device.Branch_Code,
+            "device.Branch_Code": branchCode,
             "device.Device_ID": device.Device_ID,
             "device.Current_Status": device.Current_Status || "Active",
-          }
+            branch: branchRecord || {},
+          },
         }
       );
+
+      const updatedBufferItems = await database.buffer
+        .find({ mac_id: device.Device_ID })
+        .toArray();
+      for (const item of updatedBufferItems) {
+        io.emit("data", item);
+      }
 
       database.adminLogs.insertOne({
         userId: req.user.userId,
@@ -160,8 +187,8 @@ router.delete(
 
       // Unset the device field from buffer collection
       await database.buffer.updateMany(
-        { "device.Device_ID": deviceID },
-        { $set: { device: {} } }
+        { mac_id: deviceID },
+        { $set: { device: {}, branch: {} } }
       );
 
       database.adminLogs.insertOne({

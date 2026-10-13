@@ -103,6 +103,7 @@
 <script setup>
 import { useNotificationsStore } from "@/store/notifications";
 import Zones from "@/data/zones";
+import { isVisibleOnStatusList } from "@/utils/statusVisibility";
 const config = useRuntimeConfig();
 definePageMeta({
   layout: "dashboard",
@@ -211,7 +212,14 @@ loadData();
 io.connect();
 io.on("data", (newData) => {
   if (loading.value) return;
-  tempData[tempData.findIndex((d) => d.mac_id === newData.mac_id)] = newData;
+  const index = tempData.findIndex((d) => d.mac_id === newData.mac_id);
+  if (!isVisibleOnStatusList(newData)) {
+    if (index !== -1) tempData.splice(index, 1);
+  } else if (index === -1) {
+    tempData.push(newData);
+  } else {
+    tempData[index] = newData;
+  }
   if (gFilters.length === 0) {
     data.value = tempData;
     total.value = data.value.length;

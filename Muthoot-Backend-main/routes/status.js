@@ -2,57 +2,49 @@ import express from "express";
 import { permissionMiddleware } from "../middlewares/permissions.js";
 import { roles, database } from "../services/mongodb.service.js";
 import { PermissionField } from "../utils/constants.js";
+import { normalizeDeviceId } from "../utils/deviceId.js";
+import { buildStatusList } from "../utils/statusVisibility.js";
 
 const router = express.Router();
 
 router.get("/", permissionMiddleware(roles, PermissionField.Flags.ViewStatus), async (req, res) => {
     const showUnregistered = req.query.raw;
     try {
-      const items = await database.buffer.find( { "device.Current_Status": { $ne: "Inactive" } }).toArray();
-      // const devices = await database.devices.find(
-      //     {},
-      //     {
-      //       projection: {
-      //         _id: 0,
-      //         Device_ID: 1,
-      //         Branch_Code: 1,
-      //       },
-      //     }
-      //   )
-      //   .toArray();
-      // const branches = await database.branches.find(
-      //     {},
-      //     {
-      //       projection: {
-      //         _id: 0,
-      //         Code: 1,
-      //         Branch_Name: 1,
-      //         Region: 1,
-      //         Hub: 1,
-      //         Vertical: 1,
-      //       },
-      //     }
-      //   ).toArray();
-      // for (let i = 0; i < items.length; i++) {
-      //   const item = items[i];
-      //   const device = devices.find(
-      //     (device) => device.Device_ID === item.mac_id
-      //   );
-      //   if (!device) {
-      //     item.device = {};
-      //     item.branch = null;
-      //     continue;
-      //   }
-      //   item.device = device;
-      //   // item.device.Password = device.Password.replace(/./g, "*");
-      //   const branch = branches.find(
-      //     (branch) => branch.Code === device.Branch_Code
-      //   );
-      //   item.branch = branch || null;
-      // }
+      const [items, devices, branches] = await Promise.all([
+        database.buffer.find().toArray(),
+        database.devices
+          .find(
+            {},
+            {
+              projection: {
+                _id: 0,
+                Device_ID: 1,
+                Branch_Code: 1,
+                Current_Status: 1,
+              },
+            }
+          )
+          .toArray(),
+        database.branches
+          .find(
+            {},
+            {
+              projection: {
+                _id: 0,
+                Branch_Name: 1,
+                Code: 1,
+                Region: 1,
+                Hub: 1,
+                Vertical: 1,
+              },
+            }
+          )
+          .toArray(),
+      ]);
+      const visibleItems = buildStatusList(items, devices, branches, Boolean(showUnregistered));
       res
         .status(200)
-        .json({ statusCode: 200, statusMessage: "success", data: ( showUnregistered ? items.filter(item => !item.branch?.Code) : items.filter(item => item.branch?.Code) ) });
+        .json({ statusCode: 200, statusMessage: "success", data: visibleItems });
     } catch (error) {
       console.log(error);
       res
@@ -64,19 +56,24 @@ router.get("/", permissionMiddleware(roles, PermissionField.Flags.ViewStatus), a
 
 router.get("/:macID", permissionMiddleware(roles, PermissionField.Flags.ViewStatusDetailed), async (req, res) => {
     try {
-      const item = await database.buffer.findOne({
-        mac_id: req.params.macID,
-      });
-      item.device = {};
-      item.branch = {};
+      const macID = normalizeDeviceId(req.params.macID);
+      const item = await database.buffer.findOne({ mac_id: macID });
       if (!item) {
         return res
           .status(404)
           .json({ statusCode: 404, statusMessage: "Device not found" });
       }
-      const device = await database.devices.findOne({
-        Device_ID: req.params.macID,
+      const registeredDevice = await database.devices.findOne({
+        Device_ID: macID,
       });
+      if (registeredDevice?.Current_Status === "Inactive") {
+        return res
+          .status(404)
+          .json({ statusCode: 404, statusMessage: "Device is inactive" });
+      }
+      item.device = {};
+      item.branch = {};
+      const device = registeredDevice;
       if (device) {
         item.device = device;
         delete item.device._id;
