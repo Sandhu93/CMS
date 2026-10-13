@@ -1,0 +1,53 @@
+name: watchguardian-mqtt-diagnostics
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mqtt_diagnostics}
+      POSTGRES_USER: ${POSTGRES_USER:-diagnostics}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-diagnostics-only}
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-55432}:5432"
+    volumes:
+      - diagnostics-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  collector:
+    build: ./collector
+    restart: unless-stopped
+    environment:
+      PORT: 5003
+      DATABASE_URL: postgres://${POSTGRES_USER:-diagnostics}:${POSTGRES_PASSWORD:-local-diagnostics-only}@postgres:5432/${POSTGRES_DB:-mqtt_diagnostics}
+      MQTT_URL: ${MQTT_URL:?Set MQTT_URL in .env}
+      MQTT_TOPIC: ${MQTT_TOPIC:-sensor}
+      MQTT_ROUNDTRIP_TOPIC: ${MQTT_ROUNDTRIP_TOPIC:-watchguardian/diagnostics/roundtrip}
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      MQTT_CLIENT_ID: ${MQTT_CLIENT_ID:-}
+      MQTT_SUBSCRIPTION_QOS: ${MQTT_SUBSCRIPTION_QOS:-1}
+      MQTT_CAPTURE_MAX_BYTES: ${MQTT_CAPTURE_MAX_BYTES:-16384}
+      CAPTURE_RETENTION_DAYS: ${CAPTURE_RETENTION_DAYS:-14}
+      DEVICE_RECENT_SECONDS: ${DEVICE_RECENT_SECONDS:-300}
+      DEVICE_OFFLINE_SECONDS: ${DEVICE_OFFLINE_SECONDS:-900}
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-5003}:5003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  dashboard:
+    build: ./dashboard
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${DASHBOARD_HOST_PORT:-4173}:80"
+    depends_on:
+      - collector
+
+volumes:
+  diagnostics-postgres:

@@ -1,0 +1,18 @@
+export default [
+  "Main Entrance Shutter",
+  "Entrance PIR",
+  "Strong Room PIR",
+  "Vibration Sensor",
+  "Windows",
+  "Safe Magnet",
+  "Panic Switch",
+  "Hooter",
+  "Manager Door",
+  "Safe Room Door",
+  "Safe Room Panic",
+  "Vibration Sensor 2",
+  "Main Door",
+  "Panic Switch 2",
+  "Spare 15",
+  "Spare 16",
+];

@@ -1,0 +1,32 @@
+# Secrets and local environment settings
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Dependencies and generated build output
+**/node_modules/
+**/.nuxt/
+**/.output/
+**/dist/
+**/build/
+**/coverage/
+**/.wrangler/
+**/.vercel/
+
+# Local logs and captured panel data
+**/logs/
+*.log
+Muthoot-Backend-main/dev-output.txt
+Muthoot-Backend-main/mqtt_log.txt.txt
+
+# Legacy archived code contains embedded database credentials
+Muthoot-Backend-main/archive/
+
+# Local databases and editor/OS files
+mqtt-diagnostics/postgres-data/
+.DS_Store
+Thumbs.db
+*.swp
