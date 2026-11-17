@@ -14,7 +14,7 @@ const ModeLongs = {
 }
 
 export const mqttOnConnect = (client) => {
-  console.log(`Connected to MQTT broker: ${process.env.MQTT_ADDRESS}`);
+  console.log("Connected to MQTT broker");
   console.log("Subscribing to topic: sensor");
   client.subscribe(process.env.MQTT_TOPIC.split(","), (err) => {
     console.log(err);
